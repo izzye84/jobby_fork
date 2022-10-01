@@ -1,0 +1,7 @@
+[project]
+name = "jobby"
+version = "0.0.1"
+dependencies = ["requests", "pydantic", "networkx", "matplotlib", "pydot"]
+
+[project.optional-dependencies]
+dev = ["pytest", "black"]
