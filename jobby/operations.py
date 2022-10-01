@@ -1,7 +1,7 @@
 from typing import List, Dict, Tuple, Optional
 
-from schemas import Job, Model
-from dag import DAG
+from jobby.schemas import Job, Model
+from jobby.dag import DAG
 
 
 def distribute_job(
@@ -43,7 +43,7 @@ import pydot
 
 def generate_dot_graph(jobs: List[Job], name):
 
-    dot_graph = pydot.Dot(name, graph_type="digraph", rankdir="LR", simplify=True)
+    dot_graph = pydot.Dot(name, graph_type="digraph", rankdir="LR")
 
     for job in jobs:
 

@@ -26,8 +26,6 @@ class Job:
         self.dag = dag
         self.name: Optional[str] = name
 
-        print(self.name)
-
         self.models: Dict[str, Model] = self._evaluate_models()
 
     def _evaluate_models(self) -> Dict:
@@ -38,7 +36,7 @@ class Job:
             exclusions = self.dag.select(self.exclude)
 
         for node in self.dag.select(self.selector):
-            if node.split('.')[0] not in ("model", "snapshot"):
+            if node.split(".")[0] not in ("model", "snapshot"):
                 continue
 
             if node in exclusions:
@@ -47,7 +45,7 @@ class Job:
             models[node] = Model(
                 unique_id=node,
                 depends_on=self.dag.node_dependencies(node),
-                name=self.dag.model_mapping[node]
+                name=self.dag.model_mapping[node],
             )
 
         return models
@@ -75,7 +73,6 @@ class Job:
         self.models[model.unique_id] = model
         self.selector = self.dag.generate_selector(self.models)
 
-
     def union(self, other_jobs: List[Job]) -> Job:
         """Union two jobs such that they encompase the unioned set of models."""
         new_job = Job(job_id=self.job_id, selector=self.selector, dag=self.dag)
@@ -96,5 +93,5 @@ class Job:
             job_id=self.job_id,
             selector=self.selector,
             exclude=self.exclude,
-            models='\n\t\t'.join([model.unique_id for _, model in self.models.items()] )
+            models="\n\t\t".join([model.unique_id for _, model in self.models.items()]),
         )

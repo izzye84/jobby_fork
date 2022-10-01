@@ -169,6 +169,54 @@ class DAG:
             )
         }
 
+    def _select_foundation_selectors(self, selected_graph):
+        sections = set()
+        nodes = list(networkx.topological_sort(selected_graph))
+
+        for node in nodes:
+
+            ancestor_foundation = [
+                selected_graph.nodes[ancestor]["foundation"] is True
+                for ancestor in networkx.ancestors(selected_graph, node)
+            ]
+
+            if len(ancestor_foundation) == 0:
+                continue
+
+            if all(ancestor_foundation):
+                selected_graph.nodes[node]["foundation"] = True
+
+        foundation_nodes = {
+            node
+            for node, value in networkx.get_node_attributes(
+                selected_graph, "foundation"
+            ).items()
+            if value is True
+        }
+
+        removed_nodes = set()
+
+        foundation_subgraph = selected_graph.subgraph(foundation_nodes)
+        for component in networkx.connected_components(
+            networkx.to_undirected(foundation_subgraph)
+        ):
+
+            if len(component) <= 1:
+                continue
+
+            component_subgraph = selected_graph.subgraph(component)
+            removed_nodes.update(component)
+            leaves = (
+                x
+                for x in component_subgraph.nodes()
+                if component_subgraph.out_degree(x) == 0
+            )
+            sections = sections.union(
+                {f"+{self.model_mapping[leaf]}" for leaf in leaves}
+            )
+
+        return sections, removed_nodes
+
     def generate_selector(self, models: Dict[str, Model]) -> str:
 
         sections = set()
@@ -177,7 +225,17 @@ class DAG:
         # Make a graph!
         node_set = set(models.keys())
 
-        inner_subgraph = networkx.dag_to_branching(self.graph.subgraph(node_set))
+        selected_graph = self.graph.subgraph(node_set).copy()
+
+        # Find stable subgraphs and add them to the sections
+        new_sections, foundation_nodes = self._select_foundation_selectors(
+            selected_graph
+        )
+
+        sections.update(new_sections)
+        selected_graph.remove_nodes_from(foundation_nodes)
+
+        inner_subgraph = networkx.dag_to_branching(selected_graph)
         original_nodes = networkx.get_node_attributes(inner_subgraph, "source")
 
         selected_end_points = set()
@@ -185,7 +243,6 @@ class DAG:
         for component in networkx.connected_components(
             networkx.to_undirected(inner_subgraph)
         ):
-            print([self.model_mapping[original_nodes[node]] for node in component])
 
             # If there are two or fewer nodes, then simply add them.
             if len(component) <= 2:
@@ -202,12 +259,16 @@ class DAG:
             start_point = self.model_mapping[original_nodes[sorted_nodes[0]]]
             end_point = self.model_mapping[original_nodes[sorted_nodes[-1]]]
 
-            selected_end_points = selected_end_points.union({start_point, end_point})
+            selected_end_points.update({start_point, end_point})
 
-            sections.add(
-                f"{start_point}+,+{end_point}"
-            )
+            sections.add(f"{start_point}+,+{end_point}")
 
-        sections = sections.union({singleton for singleton in singletons if singleton not in selected_end_points})
+        sections = sections.union(
+            {
+                singleton
+                for singleton in singletons
+                if singleton not in selected_end_points
+            }
+        )
 
         return " ".join(sections)

@@ -1,14 +1,14 @@
 import os
 from typing import Tuple, List
 
-from dbt_cloud import DBTCloud
-from operations import generate_dot_graph
-from schemas import Job, Model
-from dag import DAG
-from manifest import Manifest
+from jobby.dbt_cloud import DBTCloud
+from jobby.operations import generate_dot_graph
+from jobby.schemas import Job, Model
+from jobby.dag import DAG
+from jobby.manifest import Manifest
 
 
-from operations import distribute_job
+from jobby.operations import distribute_job
 
 api_key = os.environ.get("API_KEY")
 
@@ -16,13 +16,15 @@ if api_key is None:
     raise Exception("An API_KEY env var must be provided.")
 
 dbt_cloud = DBTCloud(account_id=10767, api_key=api_key)
-manifest = Manifest(manifest_path="finish_line/manifest.json")
+manifest = Manifest(manifest_path="example-data/manifest.json")
 
 
 # Daily jobs
 daily_stage_and_intermediate = dbt_cloud.get_job(job_id=43696, dag=manifest.dag)
 daily_oc11_base_cloud = dbt_cloud.get_job(job_id=43020, dag=manifest.dag)
 daily_eom_base_cloud = dbt_cloud.get_job(job_id=43018, dag=manifest.dag)
+
+print(daily_stage_and_intermediate)
 
 # Hourly jobs
 hourly_stage_cloud = dbt_cloud.get_job(job_id=43030, dag=manifest.dag)
@@ -52,48 +54,12 @@ hourly_jobs = [
     demand_hour_day_segment_fill_loc,
     finance_sales_validated,
     labor_forcast_and_sales_plan,
-    snapshots_hourly
+    snapshots_hourly,
 ]
 
-# dot_graph = generate_dot_graph(hourly_jobs, name="finish_line")
-# dot_graph.write_dot("finish_line_hourly.dot")  # type: ignore
-# dot_graph.write_pdf("finish_line_hourly.pdf")  # type: ignore
-
-# daily_oc11_base = Job(
-#     job_id=43020,
-#     dag=manifest.dag,
-#     name="Daily - OC11 - Base",
-#     selector="tag:source_oc11,tag:layer_base,tag:loader_streamsets",
-# )
-
-# daily_eom_base = Job(
-#     job_id=43018,
-#     dag=manifest.dag,
-#     name="Daily - EOM - Base",
-#     selector="tag:source_eom,tag:layer_base,tag:loader_streamsets",
-# )
-
-# hourly_stage = Job(
-#     job_id=43030,
-#     dag=manifest.dag,
-#     name="Hourly - Stage",
-#     selector="tag:layer_stage,tag:refresh_hourly",
-#     exclude="source:countwise+",
-# )
-
-# hourly_orders_intermediate = Job(
-#     job_id=43029,
-#     dag=manifest.dag,
-#     name="Hourly - Orders - Intermediate",
-#     selector="int_current_lens_purchase_orders int_current_lens_purchase_orders_line_item int_current_lens_orders int_current_lens_order_line_item int_current_lens_lpn int_current_lens_lpn_detail int_current_lens_asn int_current_lens_po_ref_fields int_current_lens_charge_detail int_current_lens_pob int_current_lens_purchase_orders_attribute int_current_tax_summary int_current_lens_payment_detail int_current_lens_payment_transaction int_current_lens_invoice int_current_lens_invoice_line int_current_lens_web_profile int_current_lens_riskified int_order_payment_transaction int_order_line int_order_line_fct",
-# )
-
-# hourly_marts = Job(
-#     job_id=38468,
-#     dag=manifest.dag,
-#     name="Marts - Hourly",
-#     selector="tag:mart,tag:hourly tag:layer_marts,tag:refresh_hourly",
-# )
+dot_graph = generate_dot_graph(hourly_jobs, name="finish_line")
+dot_graph.write_dot("finish_line_hourly.dot")  # type: ignore
+dot_graph.write_pdf("finish_line_hourly.pdf")  # type: ignore
 
 
 jobs = [
@@ -110,21 +76,13 @@ jobs = [
     finance_sales_validated,
     labor_forcast_and_sales_plan,
     daily_stage_and_intermediate,
-    snapshots_hourly
+    snapshots_hourly,
 ]
 
-# for index, job in enumerate(jobs):
-#     cloud_job = jobs_cloud[index]
 
-#     if not set(job.models) == set(cloud_job.models):
-#         print(f"The cloud and manual versions of {job.name} and {cloud_job.name} have different models")
-#         print(job.selector, job.exclude)
-#         print(cloud_job.selector, cloud_job.exclude)
-
-
-# dot_graph = generate_dot_graph(jobs, name="finish_line")
-# dot_graph.write_dot("finish_line_current.dot")  # type: ignore
-# dot_graph.write_pdf("finish_line_current.pdf")  # type: ignore
+dot_graph = generate_dot_graph(jobs, name="finish_line")
+dot_graph.write_dot("finish_line_current.dot")  # type: ignore
+dot_graph.write_pdf("finish_line_current.pdf")  # type: ignore
 
 # Distribute Base OEM and Base OC11 between daily and hourly staging jobs
 
@@ -151,7 +109,6 @@ if oc11_remainder is not None:
     )
 
 
-
 jobs = [
     demand_hour_day_segment_fill_loc,
     finance_sales_validated,
@@ -169,8 +126,8 @@ jobs = [
 
 dot_graph = generate_dot_graph(jobs, name="finish_line")
 
-# dot_graph.write_dot("finish_line_distributed.dot")  # type: ignore
-# dot_graph.write_pdf("finish_line_distributed.pdf")  # type: ignore
+dot_graph.write_dot("finish_line_distributed.dot")  # type: ignore
+dot_graph.write_pdf("finish_line_distributed.pdf")  # type: ignore
 
 
 # Union together the hourly jobs that have dependencies
@@ -182,15 +139,12 @@ jobs_to_union = [
     stockmaster_timeline,
     customer_dist_order_fct,
     stage_hourly,
-    snapshots_hourly
+    snapshots_hourly,
 ]
 
 
-unioned_jobs = jobs_to_union[0].union(jobs[1:-1])
+unioned_jobs = jobs_to_union[0].union(jobs_to_union[1:-1])
 unioned_jobs.name = "Hourly Models"
-print(unioned_jobs.selector)
-
-exit()
 
 
 jobs = [
@@ -201,9 +155,10 @@ jobs = [
     unioned_jobs,
 ]
 
-# dot_graph = generate_dot_graph(jobs, name="finish_line_unioned")
-# dot_graph.write_dot("finish_line_unioned.dot")  # type: ignore
-# dot_graph.write_pdf("finish_line_unioned.pdf")  # type: ignore
+
+dot_graph = generate_dot_graph(jobs, name="finish_line_unioned")
+dot_graph.write_dot("finish_line_unioned.dot")  # type: ignore
+dot_graph.write_pdf("finish_line_unioned.pdf")  # type: ignore
 
 # Fine tuning to rebalance model dependencies
 def transfer_models(model_names: List[str], source_job: Job, target_job: Job) -> None:
@@ -220,22 +175,21 @@ transfer_models(
         "stg_stock_master",
         "stg_eom_purchase_orders_attribute",
         "base_eom_purchase_orders_attribute",
-        'stg_tfl_stock_master',
-        'stg_countwise_chains',
-        'stg_countwise_sites_in_chain',
-        'stg_countwise_location'
+        "stg_tfl_stock_master",
+        "stg_countwise_chains",
+        "stg_countwise_sites_in_chain",
+        "stg_countwise_location",
+        "stg_tfl_loc_partic",
+        "stg_tfl_loc_master",
+        "stg_tfl_district_master",
     ],
     source_job=daily_stage_and_intermediate,
     target_job=unioned_jobs,
 )
 
-
-# dot_graph = generate_dot_graph(jobs, name="finish_line_tuned")
-# dot_graph.write_dot("finish_line_tuned.dot")  # type: ignore
-# dot_graph.write_pdf("finish_line_tuned.pdf")  # type: ignore
-
-
-
+dot_graph = generate_dot_graph(jobs, name="finish_line_tuned")
+dot_graph.write_dot("finish_line_tuned.dot")  # type: ignore
+dot_graph.write_pdf("finish_line_tuned.pdf")  # type: ignore
 
 
 dot_graph = generate_dot_graph(
@@ -245,12 +199,6 @@ dot_graph = generate_dot_graph(
 dot_graph.write_dot("finish_line_final.dot")  # type: ignore
 dot_graph.write_pdf("finish_line_final.pdf")  # type: ignore
 
-# print("===== Distribution =====")
 
-
-# new_jobs, job_1_remainder = distribute_job(manifest.dag, job_1, [job_3])
-# new_jobs_2, new_job_3_remainder = distribute_job(manifest.dag, new_jobs[0], [job_2])
-
-# print(new_jobs[0])
-# print(new_job_3_remainder)
-# print(new_jobs_2[0])
+print(unioned_jobs)
+print(updated_targets[daily_stage_and_intermediate.job_id])

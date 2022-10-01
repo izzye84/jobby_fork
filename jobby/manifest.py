@@ -3,7 +3,7 @@ import json
 
 import networkx
 
-from dag import DAG
+from jobby.dag import DAG
 
 
 class Manifest:
@@ -33,6 +33,7 @@ class Manifest:
                 tags=node["tags"],
                 name=node["name"],
                 source_name=node.get("source_name"),
+                foundation=True
             )
 
         for key, node in manifest_data["nodes"].items():
@@ -40,11 +41,14 @@ class Manifest:
             if key.split(".")[0] in ["test", "operation"]:
                 continue
 
+            foundation = all([ dependency.split('.')[0] == 'source' for dependency in  node['depends_on']['nodes']])
+
             graph.add_node(
                 key,
                 tags=node["tags"],
                 name=node["name"],
                 source_name=node.get("source_name"),
+                foundation=foundation
             )
 
             for dependency in node["depends_on"]["nodes"]:
@@ -52,7 +56,5 @@ class Manifest:
                     continue
 
                 graph.add_edge(dependency, key)
-
-
 
         return graph
