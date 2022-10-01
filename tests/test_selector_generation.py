@@ -3,7 +3,6 @@ from jobby.types.dag import DAG
 from jobby.types.model import Model
 
 
-
 def test_collapse_branching():
     graph = networkx.DiGraph()
     graph.add_edges_from([("0", "1"), ("1", "2"), ("2", "3")])
@@ -43,7 +42,7 @@ def test_collapse_multiple_branches():
 
     new_selector = dag.generate_selector(models=models)
 
-    assert set(new_selector.split(" ")) == set("0+,+3 a+,+3".split(" "))
+    assert set(new_selector.split(" ")) == set("0+,+3 a".split(" "))
 
 
 def test_foundation_transativity():

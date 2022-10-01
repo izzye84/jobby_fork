@@ -1,5 +1,7 @@
 from typing import List, Dict, Tuple, Optional
 
+import pydot
+
 from .types.model import Model
 from .types.job import Job
 from .types.dag import DAG
@@ -39,10 +41,8 @@ def distribute_job(
     ) > 0 else None
 
 
-import pydot
-
-
 def generate_dot_graph(jobs: List[Job], name):
+    """Create a PyDot Graph for a list of Jobs"""
 
     dot_graph = pydot.Dot(name, graph_type="digraph", rankdir="LR")
 

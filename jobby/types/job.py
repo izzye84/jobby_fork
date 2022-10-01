@@ -5,6 +5,7 @@ from typing import Set, List, Dict, Optional
 from jobby.types.model import Model
 from jobby.types.dag import DAG
 
+
 class Job:
     def __init__(
         self,

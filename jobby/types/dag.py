@@ -1,14 +1,12 @@
-from ast import operator
 from typing import Set, List, Dict, Optional
 import enum
 import re
+
 import networkx
-
-
 import matplotlib.pyplot as plt
+from loguru import logger
 
 from jobby.types.model import Model
-
 
 class Operator(enum.Enum):
 
@@ -21,6 +19,7 @@ class DAG:
     def __init__(
         self, graph: networkx.DiGraph, node_mapping: Optional[Dict[str, str]] = None
     ) -> None:
+        logger.trace(f"Creating DAG {self.__hash__}")
         self.graph: networkx.DiGraph = graph
 
         if node_mapping is None:
@@ -219,6 +218,8 @@ class DAG:
 
         selected_graph = self.graph.subgraph(node_set).copy()
 
+        known_nodes = set()
+
         # Find stable subgraphs and add them to the sections
         new_sections, foundation_nodes = self._select_foundation_selectors(
             selected_graph
@@ -227,40 +228,50 @@ class DAG:
         sections.update(new_sections)
         selected_graph.remove_nodes_from(foundation_nodes)
 
-        inner_subgraph = networkx.dag_to_branching(selected_graph)
-        original_nodes = networkx.get_node_attributes(inner_subgraph, "source")
+        known_nodes.update(foundation_nodes)
 
         selected_end_points = set()
 
-        for component in networkx.connected_components(
-            networkx.to_undirected(inner_subgraph)
-        ):
+        max_iter = 10
+        iter = 0
+        while iter <= max_iter and len(selected_graph.nodes) > 0:
 
-            # If there are two or fewer nodes, then simply add them.
-            if len(component) <= 2:
-                singletons = singletons.union(
-                    {self.model_mapping[original_nodes[node]] for node in component}
-                )
+            logger.debug(f'Nodes: {selected_graph.nodes}')
 
-            # Do a topological sort, and find the intersection between the root and the leaf in the branching.
 
-            component_subgraph = inner_subgraph.subgraph(component)
+            if len(selected_graph.nodes) < 2:
+                sections.update({node for node in selected_graph.nodes})
+                selected_graph.remove_nodes_from({node for node in selected_graph.nodes} )
+                continue
 
-            sorted_nodes = list(networkx.topological_sort(component_subgraph))
 
-            start_point = self.model_mapping[original_nodes[sorted_nodes[0]]]
-            end_point = self.model_mapping[original_nodes[sorted_nodes[-1]]]
+            # Find the largest Branch
+            inner_subgraph = networkx.dag_to_branching(selected_graph)
+            original_nodes = networkx.get_node_attributes(inner_subgraph, "source")
 
-            selected_end_points.update({start_point, end_point})
+            largest_branch = sorted(
+                networkx.connected_components(networkx.to_undirected(inner_subgraph)),
+                key=lambda x: len(x),
+                reverse=True
+            )[0]
 
-            sections.add(f"{start_point}+,+{end_point}")
+            logger.debug(f'Largest branch: {largest_branch}')
 
-        sections = sections.union(
-            {
-                singleton
-                for singleton in singletons
-                if singleton not in selected_end_points
-            }
-        )
+            # Grab the start and end
+            component_subgraph = inner_subgraph.subgraph(largest_branch).copy()
+
+            sorted_nodes = [ original_nodes[node] for node in networkx.topological_sort(component_subgraph)]
+
+            start_point = self.model_mapping[sorted_nodes[0]]
+            end_point = self.model_mapping[sorted_nodes[-1]]
+            new_section = f"{start_point}+,+{end_point}"
+            logger.debug(f"Adding {new_section} to selector")
+            sections.add(new_section)
+
+            # Remove the branching nodes from selected graph
+            selected_graph.remove_nodes_from({self.model_mapping[node] for node in sorted_nodes} )
+
+            iter += 1
 
         return " ".join(sections)
+

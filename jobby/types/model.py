@@ -9,4 +9,3 @@ class Model(BaseModel):
     name: str
     unique_id: str
     depends_on: Set[str]
-
