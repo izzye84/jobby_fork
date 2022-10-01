@@ -4,8 +4,8 @@ import re
 from pydantic import BaseModel
 import requests
 
-from jobby.dag import DAG
-from jobby.schemas import Job
+from .types.dag import DAG
+from .types.job import Job
 
 
 class DBTCloud:

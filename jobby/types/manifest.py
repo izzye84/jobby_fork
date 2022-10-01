@@ -3,7 +3,7 @@ import json
 
 import networkx
 
-from jobby.dag import DAG
+from jobby.types.dag import DAG
 
 
 class Manifest:

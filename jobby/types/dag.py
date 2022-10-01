@@ -4,9 +4,10 @@ import enum
 import re
 import networkx
 
-from jobby.schemas import Model
 
 import matplotlib.pyplot as plt
+
+from jobby.types.model import Model
 
 
 class Operator(enum.Enum):
@@ -14,19 +15,6 @@ class Operator(enum.Enum):
     upstream = "upstream"
     downstream = "downstream"
     wildcard = "wildcard"
-
-
-def prntPath(lst, node, df, lst_vst):
-    for val in df.values:
-        if val[0] == node:
-            lst.append(val[1])
-            prntPath(lst, val[1], df, lst_vst)
-    if not lst[-1] in lst_vst:
-        print("-".join(lst))
-    for l in lst:
-        lst_vst.add(l)
-    lst.pop()
-    return
 
 
 class DAG:
@@ -51,18 +39,22 @@ class DAG:
         nodes = nodes_of_interest.copy()
 
         if Operator.wildcard in operators:
-            for node in self.graph.nodes():
-                nodes.add(node)
+            nodes.update({node for node in self.graph.nodes()})  # type: ignore
             return nodes
 
         for node_of_interest in nodes_of_interest:
             if Operator.upstream in operators:
-                for node in networkx.ancestors(self.graph, node_of_interest):
-                    nodes.add(node)
+                nodes.update(
+                    {node for node in networkx.ancestors(self.graph, node_of_interest)}
+                )
 
             if Operator.downstream in operators:
-                for node in networkx.descendants(self.graph, node_of_interest):
-                    nodes.add(node)
+                nodes.update(
+                    {
+                        node
+                        for node in networkx.descendants(self.graph, node_of_interest)
+                    }
+                )
 
         return nodes
 
@@ -132,10 +124,10 @@ class DAG:
                 # combination of operators to be applied!
                 nodes_of_interest = set()
 
-                if method == "tag":
+                if method == "tag" and value is not None:
                     nodes_of_interest = self._get_tag_nodes(tag=value)
 
-                elif method == "source":
+                elif method == "source" and value is not None:
                     nodes_of_interest = self._get_source_by_name(name=value)
 
                 elif method is None:

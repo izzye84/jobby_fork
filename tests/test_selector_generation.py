@@ -1,6 +1,7 @@
 import networkx
-from jobby.dag import DAG
-from jobby.schemas import Model
+from jobby.types.dag import DAG
+from jobby.types.model import Model
+
 
 
 def test_collapse_branching():

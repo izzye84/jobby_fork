@@ -1,7 +1,8 @@
 from typing import List, Dict, Tuple, Optional
 
-from jobby.schemas import Job, Model
-from jobby.dag import DAG
+from .types.model import Model
+from .types.job import Job
+from .types.dag import DAG
 
 
 def distribute_job(
