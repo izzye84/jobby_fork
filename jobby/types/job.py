@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Set, List, Dict, Optional
 
+from loguru import logger
+
 from jobby.types.model import Model
 from jobby.types.dag import DAG
 
@@ -14,6 +16,7 @@ class Job:
         dag: DAG,
         name: Optional[str] = None,
         exclude: Optional[str] = None,
+        models: Optional[Dict[str, Model]] = None
     ) -> None:
         self.job_id = job_id
         self.selector = selector
@@ -21,7 +24,7 @@ class Job:
         self.dag = dag
         self.name: Optional[str] = name
 
-        self.models: Dict[str, Model] = self._evaluate_models()
+        self.models: Dict[str, Model] = models if models is not None else self._evaluate_models()
 
     def _evaluate_models(self) -> Dict:
         models = {}
@@ -49,7 +52,7 @@ class Job:
         """Return a set of all of the external models that this job requires."""
         output = set()
         for _, model in self.models.items():
-            output = output.union(model.depends_on)
+            output.update(model.depends_on)
 
         return output.difference(self.models.keys())
 
@@ -70,14 +73,22 @@ class Job:
 
     def union(self, other_jobs: List[Job]) -> Job:
         """Union two jobs such that they encompase the unioned set of models."""
-        new_job = Job(job_id=self.job_id, selector=self.selector, dag=self.dag)
+
+        logger.info("Performing union of {job_1_name} and {job_2_name}",
+                job_1_name = self.name,
+                job_2_name = ', '.join([job.name or 'Unknown' for job in other_jobs])
+                )
+
+        new_job = Job(job_id=self.job_id, selector=self.selector, dag=self.dag, models=self.models)
 
         for job in other_jobs:
-            new_job.models.update(job.models)
+            for unique_id, model in job.models.items():
+
+                logger.info('Added {unique_id} from {job}', unique_id=unique_id, job=job.name)
+                if unique_id in new_job.models:
+                    continue
+                new_job.models[unique_id] = model.copy()
             new_job.selector += f" {job.selector}"
-            # new_job.depends_on.union(job.depends_on)
-            # if job.job_id in new_job.depends_on:
-            #     new_job.depends_on.remove(job.job_id)
 
         new_job.selector = new_job.dag.generate_selector(models=new_job.models)
 

@@ -134,7 +134,7 @@ class DAG:
                     try:
                         nodes_of_interest.add(self._get_node_by_name(node_name))
                     except KeyError:
-                        print(f"Warning! Unable to find node {node_name}.")
+                        logger.warning(f"Unable to find node {node_name}.")
 
                 elif method is not None:
                     raise NotImplemented(
@@ -232,46 +232,70 @@ class DAG:
 
         selected_end_points = set()
 
-        max_iter = 10
+        max_iter = 10000000
         iter = 0
         while iter <= max_iter and len(selected_graph.nodes) > 0:
+            logger.debug("Branching iteration {iteration}", iteration=iter)
+            iter += 1
 
-            logger.debug(f'Nodes: {selected_graph.nodes}')
+            # logger.debug('Nodes: {nodes}. Edges: {edges}', nodes=selected_graph.nodes, edges=selected_graph.edges)
 
 
-            if len(selected_graph.nodes) < 2:
-                sections.update({node for node in selected_graph.nodes})
+            if len(selected_graph.nodes) <= 2:
+                # logger.debug('Two nodes or fewer remaining. Adding them and moving on. {nodes}.', nodes=selected_graph.nodes)
+                sections.update({self.model_mapping[node] for node in selected_graph.nodes})
                 selected_graph.remove_nodes_from({node for node in selected_graph.nodes} )
                 continue
 
+            # Find the largest connected component
+
+            # components = sorted(
+            #     networkx.connected_components(networkx.to_undirected(selected_graph)),
+            #     key=lambda x: len(x),
+            #     reverse=True
+            # )
+            # logger.debug("Components: {components}", components=components)
+
+            # component_graph = selected_graph.subgraph(components[0])
 
             # Find the largest Branch
-            inner_subgraph = networkx.dag_to_branching(selected_graph)
-            original_nodes = networkx.get_node_attributes(inner_subgraph, "source")
+            # inner_subgraph = networkx.dag_to_branching(component_graph)
+            # original_nodes = networkx.get_node_attributes(inner_subgraph, "source")
+            # logger.debug(inner_subgraph.edges)
 
-            largest_branch = sorted(
-                networkx.connected_components(networkx.to_undirected(inner_subgraph)),
-                key=lambda x: len(x),
-                reverse=True
-            )[0]
+            # largest_branchs = sorted(
+            #     networkx.connected_components(networkx.to_undirected(inner_subgraph)),
+            #     key=lambda x: len(x),
+            #     reverse=True
+            # )
 
-            logger.debug(f'Largest branch: {largest_branch}')
+
+            longest_branch = networkx.dag_longest_path(selected_graph)
+
+            # logger.debug("Branches: {branches}", branches=largest_branchs)
+
+            if len(longest_branch) < 3:
+                # logger.warning("Longest branch is short enough for direct selection.")
+                sections.update({self.model_mapping[node] for node in longest_branch})
+                # logger.warning("Directly adding the following nodes: {nodes}", nodes=longest_branch)
+                selected_graph.remove_nodes_from(longest_branch)
+                continue
+
+            # largest_branch = largest_branchs[0]
 
             # Grab the start and end
-            component_subgraph = inner_subgraph.subgraph(largest_branch).copy()
+            component_subgraph = selected_graph.subgraph(longest_branch).copy()
 
-            sorted_nodes = [ original_nodes[node] for node in networkx.topological_sort(component_subgraph)]
+            sorted_nodes = [ node for node in networkx.topological_sort(component_subgraph)]
 
             start_point = self.model_mapping[sorted_nodes[0]]
             end_point = self.model_mapping[sorted_nodes[-1]]
             new_section = f"{start_point}+,+{end_point}"
-            logger.debug(f"Adding {new_section} to selector")
             sections.add(new_section)
 
             # Remove the branching nodes from selected graph
-            selected_graph.remove_nodes_from({self.model_mapping[node] for node in sorted_nodes} )
+            selected_graph.remove_nodes_from({node for node in sorted_nodes} )
 
-            iter += 1
 
         return " ".join(sections)
 
