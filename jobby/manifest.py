@@ -33,7 +33,7 @@ class Manifest:
                 tags=node["tags"],
                 name=node["name"],
                 source_name=node.get("source_name"),
-                foundation=True
+                foundation=True,
             )
 
         for key, node in manifest_data["nodes"].items():
@@ -41,14 +41,19 @@ class Manifest:
             if key.split(".")[0] in ["test", "operation"]:
                 continue
 
-            foundation = all([ dependency.split('.')[0] == 'source' for dependency in  node['depends_on']['nodes']])
+            foundation = all(
+                [
+                    dependency.split(".")[0] == "source"
+                    for dependency in node["depends_on"]["nodes"]
+                ]
+            )
 
             graph.add_node(
                 key,
                 tags=node["tags"],
                 name=node["name"],
                 source_name=node.get("source_name"),
-                foundation=foundation
+                foundation=foundation,
             )
 
             for dependency in node["depends_on"]["nodes"]:

@@ -16,31 +16,32 @@ class DBTCloud:
         self._runs: Dict = {}
         self._manifests: Dict = {}
 
-
-
     def get_job(self, job_id: int, dag: DAG) -> Job:
         """Generate a Job based on a dbt Cloud job."""
         response = requests.get(
-                url=f"https://cloud.getdbt.com/api/v2/accounts/{self.account_id}/jobs/{job_id}",
-
-                headers={
-                    "Authorization": f"Bearer {self._api_key}",
-                    "Content-Type": "application/json",
-                },
+            url=f"https://cloud.getdbt.com/api/v2/accounts/{self.account_id}/jobs/{job_id}",
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/json",
+            },
         )
 
-        dbt_cloud_job = response.json()['data']
+        dbt_cloud_job = response.json()["data"]
 
         selectors: List[str] = []
         exclusions: List[str] = []
-        for execute_step in dbt_cloud_job['execute_steps']:
-            output = re.search(r'(\-\-select|\-s|\-m) ([a-zA-Z_0-9\,\+\@\: ]+)', execute_step)
+        for execute_step in dbt_cloud_job["execute_steps"]:
+            output = re.search(
+                r"(\-\-select|\-s|\-m) ([a-zA-Z_0-9\,\+\@\: ]+)", execute_step
+            )
             if output is not None:
                 groups = output.groups()
                 if len(groups) > 0:
                     selectors.append(groups[1])
 
-            output = re.search(r'(\-\-exclude|\-e) ([a-zA-Z_0-9\,\+\@\: ]+)', execute_step)
+            output = re.search(
+                r"(\-\-exclude|\-e) ([a-zA-Z_0-9\,\+\@\: ]+)", execute_step
+            )
             if output is not None:
                 groups = output.groups()
                 if len(groups) > 0:
@@ -48,12 +49,11 @@ class DBTCloud:
 
         return Job(
             job_id=job_id,
-            name=dbt_cloud_job['name'],
+            name=dbt_cloud_job["name"],
             dag=dag,
-            selector=' '.join(selectors).rstrip(),
-            exclude=' '.join(exclusions).rstrip()
+            selector=" ".join(selectors).rstrip(),
+            exclude=" ".join(exclusions).rstrip(),
         )
-
 
     # def _get_jobs(self) -> Dict:
     #     jobs = {}

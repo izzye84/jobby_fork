@@ -6,7 +6,7 @@ from jobby.schemas import Model
 def test_collapse_branching():
     graph = networkx.DiGraph()
     graph.add_edges_from([("0", "1"), ("1", "2"), ("2", "3")])
-    networkx.set_node_attributes(graph, False, name='foundation')
+    networkx.set_node_attributes(graph, False, name="foundation")
 
     dag = DAG(graph=graph)
 
@@ -21,13 +21,13 @@ def test_collapse_branching():
 
     new_selector = dag.generate_selector(models=models)
 
-    assert new_selector == '0+,+3'
+    assert new_selector == "0+,+3"
 
 
 def test_collapse_multiple_branches():
     graph = networkx.DiGraph()
     graph.add_edges_from([("0", "1"), ("a", "2"), ("1", "2"), ("2", "3")])
-    networkx.set_node_attributes(graph, False, name='foundation')
+    networkx.set_node_attributes(graph, False, name="foundation")
 
     dag = DAG(graph=graph)
 
@@ -42,16 +42,15 @@ def test_collapse_multiple_branches():
 
     new_selector = dag.generate_selector(models=models)
 
-    assert set(new_selector.split(" ")) == set('0+,+3 a+,+3'.split(" "))
-
+    assert set(new_selector.split(" ")) == set("0+,+3 a+,+3".split(" "))
 
 
 def test_foundation_transativity():
     graph = networkx.DiGraph()
     graph.add_edges_from([("0", "1"), ("a", "2"), ("1", "2"), ("2", "3"), ("2", "4")])
-    networkx.set_node_attributes(graph, False, name='foundation')
-    graph.nodes['0']['foundation'] = True
-    graph.nodes['a']['foundation'] = True
+    networkx.set_node_attributes(graph, False, name="foundation")
+    graph.nodes["0"]["foundation"] = True
+    graph.nodes["a"]["foundation"] = True
 
     dag = DAG(graph=graph)
 
@@ -66,16 +65,15 @@ def test_foundation_transativity():
 
     new_selector = dag.generate_selector(models=models)
 
-    assert set(new_selector.split(" ")) ==  set('+3 +4'.split(" "))
-
+    assert set(new_selector.split(" ")) == set("+3 +4".split(" "))
 
 
 def test_select_stability():
     graph = networkx.DiGraph()
     graph.add_edges_from([("0", "1"), ("a", "2"), ("1", "2"), ("2", "3"), ("2", "4")])
-    networkx.set_node_attributes(graph, False, name='foundation')
-    graph.nodes['0']['foundation'] = True
-    graph.nodes['a']['foundation'] = True
+    networkx.set_node_attributes(graph, False, name="foundation")
+    graph.nodes["0"]["foundation"] = True
+    graph.nodes["a"]["foundation"] = True
 
     dag = DAG(graph=graph)
 
@@ -94,6 +92,4 @@ def test_select_stability():
 
     new_selector = dag.generate_selector(models=models)
 
-    assert set(new_selector.split(" ")) ==  set('1+,+3 a'.split(' '))
-
-
+    assert set(new_selector.split(" ")) == set("1+,+3 a".split(" "))
