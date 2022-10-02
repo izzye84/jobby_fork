@@ -69,7 +69,7 @@ class Job:
     def union(self, other_jobs: List[Job]) -> Job:
         """Union two jobs such that they encompass the unioned set of models."""
 
-        logger.info(
+        logger.debug(
             "Performing union of {job_1_name} and {job_2_name}",
             job_1_name=self.name,
             job_2_name=", ".join([job.name or "Unknown" for job in other_jobs]),

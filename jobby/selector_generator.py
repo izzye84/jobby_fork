@@ -36,7 +36,9 @@ class SelectorGenerator:
             foundation = all(source_models) and len(source_models) > 0
             nodes_to_update[unique_id] = foundation
             if foundation:
-                print(unique_id)
+                logger.trace("{unique} is a foundation node. {deps}",
+                               unique=unique_id,
+                               deps=node.depends_on_nodes)
         networkx.set_node_attributes(selected_graph, nodes_to_update, 'foundation')
 
     def _select_foundation_selectors(self, selected_graph):
@@ -44,28 +46,28 @@ class SelectorGenerator:
         sections = set()
         self.identify_foundation_nodes(selected_graph)
         nodes = list(networkx.topological_sort(selected_graph))
-        print(len(nodes))
 
         for node in nodes:
-
-            ancestor_foundation = [
-                selected_graph.nodes[ancestor]["foundation"] is True
-                for ancestor in networkx.ancestors(selected_graph, node)
-            ]
+            ancestor_foundation: Dict[UniqueId, bool] = {}
+            for dependency in self.manifest.get_model(node).depends_on_nodes:
+                if dependency not in selected_graph.nodes:
+                    ancestor_foundation[dependency] = False
+                else:
+                    ancestor_foundation[dependency] = selected_graph.nodes[dependency]["foundation"] is True
 
             if selected_graph.nodes[node]["foundation"]:
+                logger.trace("{node} has already been identified as foundational.", node=node)
                 continue
 
             elif len(ancestor_foundation) == 0:
                 selected_graph.nodes[node]["foundation"] = False
 
-            elif all(ancestor_foundation):
+            elif all(ancestor_foundation.values()):
+                logger.trace("{node} identified as foundational. {ancestors}", node=node, ancestors=ancestor_foundation)
                 selected_graph.nodes[node]["foundation"] = True
 
             else:
                 selected_graph.nodes[node]["foundation"] = False
-
-            print(node, ancestor_foundation, selected_graph.nodes[node]["foundation"])
 
         foundation_nodes = {
             node
@@ -75,7 +77,7 @@ class SelectorGenerator:
             if value is True
         }
 
-        logger.debug("Foundation nodes: {nodes}", nodes=foundation_nodes)
+        logger.trace("Foundation nodes: {nodes}", nodes=foundation_nodes)
 
         colors = {}
         for node in selected_graph.nodes:
@@ -84,12 +86,12 @@ class SelectorGenerator:
             else:
                 colors[node] = 'green'
 
-        import matplotlib.pyplot as plt
-        positions= networkx.nx_pydot.graphviz_layout(selected_graph, prog='dot')
-        networkx.draw_networkx(selected_graph, pos=positions,
-                               with_labels=True, node_color=colors.values(),
-                               font_size=8)
-        plt.show()
+        # import matplotlib.pyplot as plt
+        # positions= networkx.nx_pydot.graphviz_layout(selected_graph, prog='dot')
+        # networkx.draw_networkx(selected_graph, pos=positions,
+        #                        with_labels=True, node_color=colors.values(),
+        #                        font_size=8)
+        # plt.show()
 
         removed_nodes = set()
 
@@ -124,30 +126,25 @@ class SelectorGenerator:
         # Make a graph!
         node_set: Set[UniqueId] = set.union(*[self.evaluate(select, exclude) for select, exclude in job.selectors])
 
-        if 'model.analytics.stg_eom_channel_type' in node_set:
-            logger.warning("Node found! {node}", node='model.analytics.stg_eom_channel_type')
-
         selected_graph = self.digraph.subgraph(node_set).copy()
 
         known_nodes = set()
 
         # Find stable subgraphs and add them to the sections
-        # new_sections, foundation_nodes = self._select_foundation_selectors(
-        #     selected_graph
-        # )
-        #
-        # print(foundation_nodes)
-        #
-        # sections.update(new_sections)
-        # selected_graph.remove_nodes_from(foundation_nodes)
-        # known_nodes.update(foundation_nodes)
+        new_sections, foundation_nodes = self._select_foundation_selectors(
+            selected_graph
+        )
+
+        sections.update(new_sections)
+        selected_graph.remove_nodes_from(foundation_nodes)
+        known_nodes.update(foundation_nodes)
 
         selected_end_points = set()
 
         max_iter = 10000000
         iter = 0
         while iter <= max_iter and len(selected_graph.nodes) > 0:
-            logger.debug("Branching iteration {iteration}", iteration=iter)
+            logger.trace("Branching iteration {iteration}", iteration=iter)
             iter += 1
 
             # logger.debug('Nodes: {nodes}. Edges: {edges}', nodes=selected_graph.nodes, edges=selected_graph.edges)
@@ -243,7 +240,23 @@ class SelectorGenerator:
         ]
         new_models = set.union(*new_model_lists)
 
-        self._validate_selection(original_models, new_models)
+        try:
+            self._validate_selection(original_models, new_models)
+        except Exception as exception:
+            logger.error(exception)
+            logger.info("Identifying errant items.")
+
+            removed = original_models.difference(new_models)
+            added = new_models.difference(original_models)
+
+            for select_list, exclude_list in new_selector:
+                for select in select_list:
+                    new_model_lists = self.evaluate([select], [])
+                    if len(added.intersection(new_model_lists)) > 0:
+                        logger.error("{selector} is responsible for adding {intersection}",
+                                     selector=select, intersection = added.intersection(new_model_lists))
+
+
         logger.success("The new selector for {job} has been confirmed to be stable.", job=job.name)
 
         return new_selector

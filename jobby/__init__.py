@@ -5,7 +5,6 @@ from typing import Optional, Set, List, Tuple, Dict
 
 import dbt.flags
 import networkx
-import requests
 from dbt.compilation import Linker, Compiler
 from dbt.graph import UniqueId, ResourceTypeSelector, parse_difference, Graph
 from dbt.graph.selector_spec import IndirectSelection
@@ -15,7 +14,7 @@ from loguru import logger
 from .dbt_cloud import DBTCloud
 from .selector_generator import SelectorGenerator
 from .types.job import Job
-from .types.manifest import ManifestOld, Manifest, GenericNode
+from .types.manifest import Manifest, GenericNode
 from .types.model import Model
 
 
@@ -117,7 +116,7 @@ class Jobby:
     ) -> Tuple[dict[int, Job], Optional[Job]]:
         """Partition a job such that its responsibilities are added to the target jobs."""
 
-        logger.info(
+        logger.debug(
             "Distributing models from {source} into {targets}",
             source=source_job.name,
             targets=", ".join([target.name or "Unknown" for target in target_jobs]),
@@ -139,7 +138,7 @@ class Jobby:
                     if dependency.split(".")[0] not in ["model", "snapshot"]:
                         continue
 
-                    logger.debug(
+                    logger.trace(
                         "Adding {dependency} from {source} to {target}",
                         dependency=dependency,
                         source=source_job.name,
@@ -157,21 +156,21 @@ class Jobby:
                     target_job.selectors.append(([self.manifest.get_model(dependency).name], []))
 
         for job in target_jobs:
-            logger.info("Generating new selector for {job}", job=job.name)
-            logger.debug(
+            logger.debug("Generating new selector for {job}", job=job.name)
+            logger.trace(
                 "Original selector for {job}: {selector}",
                 job=job.name,
                 selector=job.selectors,
             )
             job.selector = self.selector_generator.generate(job)
-            logger.debug(
+            logger.trace(
                 "New selector for {job}: {selector}",
                 job=job.name,
                 selector=job.selectors,
             )
 
         if len(source_job.models) > 0:
-            logger.info("Generating new selector for {job}", job=source_job.name)
+            logger.debug("Generating new selector for {job}", job=source_job.name)
             source_job.selector = self.selector_generator.generate(source_job)
 
         else:
