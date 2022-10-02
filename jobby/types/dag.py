@@ -8,6 +8,7 @@ from loguru import logger
 
 from jobby.types.model import Model
 
+
 class Operator(enum.Enum):
 
     upstream = "upstream"
@@ -220,7 +221,7 @@ class DAG:
 
         known_nodes = set()
 
-        # Find stable subgraphs and add them to the sections
+        # Find stable sub-graphs and add them to the sections
         new_sections, foundation_nodes = self._select_foundation_selectors(
             selected_graph
         )
@@ -240,11 +241,14 @@ class DAG:
 
             # logger.debug('Nodes: {nodes}. Edges: {edges}', nodes=selected_graph.nodes, edges=selected_graph.edges)
 
-
             if len(selected_graph.nodes) <= 2:
                 # logger.debug('Two nodes or fewer remaining. Adding them and moving on. {nodes}.', nodes=selected_graph.nodes)
-                sections.update({self.model_mapping[node] for node in selected_graph.nodes})
-                selected_graph.remove_nodes_from({node for node in selected_graph.nodes} )
+                sections.update(
+                    {self.model_mapping[node] for node in selected_graph.nodes}
+                )
+                selected_graph.remove_nodes_from(
+                    {node for node in selected_graph.nodes}
+                )
                 continue
 
             # Find the largest connected component
@@ -269,7 +273,6 @@ class DAG:
             #     reverse=True
             # )
 
-
             longest_branch = networkx.dag_longest_path(selected_graph)
 
             # logger.debug("Branches: {branches}", branches=largest_branchs)
@@ -286,7 +289,9 @@ class DAG:
             # Grab the start and end
             component_subgraph = selected_graph.subgraph(longest_branch).copy()
 
-            sorted_nodes = [ node for node in networkx.topological_sort(component_subgraph)]
+            sorted_nodes = [
+                node for node in networkx.topological_sort(component_subgraph)
+            ]
 
             start_point = self.model_mapping[sorted_nodes[0]]
             end_point = self.model_mapping[sorted_nodes[-1]]
@@ -294,8 +299,6 @@ class DAG:
             sections.add(new_section)
 
             # Remove the branching nodes from selected graph
-            selected_graph.remove_nodes_from({node for node in sorted_nodes} )
-
+            selected_graph.remove_nodes_from({node for node in sorted_nodes})
 
         return " ".join(sections)
-

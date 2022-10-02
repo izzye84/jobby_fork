@@ -94,9 +94,12 @@ def test_select_stability():
 
     assert set(new_selector.split(" ")) == set("1+,+3 a".split(" "))
 
+
 def test_selection_if_multiple_components():
     graph = networkx.DiGraph()
-    graph.add_edges_from([("0", "1"), ("2", "3"), ("3", "4"), ("3", "a"), ("a", "b"), ("4", "5") ])
+    graph.add_edges_from(
+        [("0", "1"), ("2", "3"), ("3", "4"), ("3", "a"), ("a", "b"), ("4", "5")]
+    )
     networkx.set_node_attributes(graph, False, name="foundation")
 
     dag = DAG(graph=graph)
@@ -112,13 +115,14 @@ def test_selection_if_multiple_components():
 
     new_selector = dag.generate_selector(models=models)
 
-    assert set(new_selector.split(" "))  ==  set("0 1 2+,+5 a b".split(" "))
-
+    assert set(new_selector.split(" ")) == set("0 1 2+,+5 a b".split(" "))
 
 
 def test_selection_respects_upstream_boundaries():
     graph = networkx.DiGraph()
-    graph.add_edges_from([("0", "1"), ("2", "3"), ("3", "4"), ("3", "a"), ("a", "b"), ("4", "5") ])
+    graph.add_edges_from(
+        [("0", "1"), ("2", "3"), ("3", "4"), ("3", "a"), ("a", "b"), ("4", "5")]
+    )
     networkx.set_node_attributes(graph, False, name="foundation")
 
     dag = DAG(graph=graph)
@@ -129,9 +133,10 @@ def test_selection_respects_upstream_boundaries():
             unique_id=node,
             depends_on={edge[0] for edge in graph.in_edges(node)},
         )
-        for node in dag.graph.nodes if node not in ("0")
+        for node in dag.graph.nodes
+        if node not in ("0")
     }
 
     new_selector = dag.generate_selector(models=models)
 
-    assert set(new_selector.split(" "))  ==  set("1 2+,+5 a b".split(" "))
+    assert set(new_selector.split(" ")) == set("1 2+,+5 a b".split(" "))
