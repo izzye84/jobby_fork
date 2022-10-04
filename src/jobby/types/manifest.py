@@ -20,6 +20,7 @@ class GenericNode(BaseModel):
     resource_type: NodeType
     package_name: str
     source_name: Optional[str]
+    path: str
 
     @property
     def depends_on_nodes(self):

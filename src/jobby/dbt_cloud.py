@@ -2,7 +2,7 @@ from typing import Dict
 
 import requests
 
-from .types.job import Job
+from jobby.types.job import Job
 
 
 class DBTCloud:

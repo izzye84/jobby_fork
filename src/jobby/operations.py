@@ -2,7 +2,7 @@ from typing import List
 
 import pydot
 
-from .types.job import Job
+from jobby.types.job import Job
 
 
 def generate_dot_graph(jobs: List[Job], name):

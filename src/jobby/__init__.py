@@ -7,15 +7,15 @@ import dbt.flags
 import networkx
 from dbt.compilation import Linker, Compiler
 from dbt.graph import UniqueId, ResourceTypeSelector, parse_difference, Graph
-from dbt.graph.selector_spec import IndirectSelection
+from dbt.graph.selector_spec import IndirectSelection, SelectionSpec
 from dbt.node_types import NodeType
 from loguru import logger
 
-from .dbt_cloud import DBTCloud
-from .selector_generator import SelectorGenerator
-from .types.job import Job
-from .types.manifest import Manifest, GenericNode
-from .types.model import Model
+from jobby.dbt_cloud import DBTCloud
+from jobby.selector_generator import SelectorGenerator
+from jobby.types.job import Job
+from jobby.types.manifest import Manifest, GenericNode
+from jobby.types.model import Model
 
 
 @dataclass
@@ -59,8 +59,15 @@ class Jobby:
         compiler.link_graph(_linker, manifest, add_test_edges=False)
         return Graph(_linker.graph)
 
-    def get_models_for_selector(
+    def get_models_for_selector_strings(
         self, select: List[str], exclude: List[str]
+    ) -> Set[UniqueId]:
+        """Get a set of models given a select and exclude statement"""
+        spec = parse_difference(select, exclude)
+        return self.get_models_for_selector_specification(specification=spec)
+
+    def get_models_for_selector_specification(
+            self, specification: SelectionSpec
     ) -> Set[UniqueId]:
         """Get a set of models given a select and exclude statement"""
 
@@ -71,8 +78,7 @@ class Jobby:
             resource_types=[NodeType.Model],
         )
 
-        spec = parse_difference(select, exclude)
-        return selector.get_selected(spec=spec)
+        return selector.get_selected(spec=specification)
 
     def get_job(self, job_id: int):
         """Generate a Job based on a dbt Cloud job."""
