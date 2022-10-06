@@ -10,12 +10,12 @@ from jobby.types.model import Model
 
 class Job:
     def __init__(
-        self,
-        job_id: int,
-        name: str,
-        steps: List[str],
-        selectors: List[Tuple[List[str], List[str]]] = None,
-        models: Optional[Dict[UniqueId, Model]] = None,
+            self,
+            job_id: int,
+            name: str,
+            steps: List[str],
+            selectors: List[Tuple[List[str], List[str]]] = None,
+            models: Optional[Dict[UniqueId, Model]] = None,
     ) -> None:
         self.job_id = job_id
         self.name: Optional[str] = name
@@ -94,6 +94,29 @@ class Job:
             new_job.steps.extend(job.steps)
 
         return new_job
+
+    def generate_terraform_import(self) -> Tuple[str, str]:
+        # Write terraform resources and the import commands
+
+        def generate_job_name(raw_name: str) -> str:
+            import re
+            name = re.sub(r'[^\w]', ' ', raw_name)
+            name = name.replace(' ', '_').lower()
+            name = re.sub(r'\_{2,}', '_', name)
+            return name
+
+        resource = """
+        resource "dbt_cloud_job" "{name}" {{
+
+        }}
+        """.format(name=generate_job_name(self.name))
+
+        command = "terraform import dbt_cloud_job.{name} {job_id}".format(
+            name=generate_job_name(self.name),
+            job_id=self.job_id,
+        )
+
+        return resource, command
 
     def __repr__(self) -> str:
         return "job_id: {job_id}, steps: {steps}\n\tmodels: {models}".format(

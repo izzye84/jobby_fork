@@ -1,12 +1,14 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Optional, Set, List, Tuple, Dict
+from typing import Optional, Set, List, Tuple, Dict, Iterator
+from pathlib import Path
 
 import dbt.flags
 import networkx
 from dbt.compilation import Linker, Compiler
 from dbt.graph import UniqueId, ResourceTypeSelector, parse_difference, Graph
+from dbt.graph.selector_methods import SelectorMethod, MethodManager, MethodName
 from dbt.graph.selector_spec import IndirectSelection, SelectionSpec
 from dbt.node_types import NodeType
 from loguru import logger
@@ -16,6 +18,25 @@ from jobby.selector_generator import SelectorGenerator
 from jobby.types.job import Job
 from jobby.types.manifest import Manifest, GenericNode
 from jobby.types.model import Model
+
+
+class RelativePathSelectorMethod(SelectorMethod):
+    def search(self, included_nodes: Set[UniqueId], selector: str) -> Iterator[UniqueId]:
+        """Yields nodes from included that match the given path."""
+        roots = {Path(node.root_path) for _, node in self.all_nodes(included_nodes)}
+        paths = set(p.relative_to(root) for root in roots for p in root.glob(selector))
+        for node, real_node in self.all_nodes(included_nodes):
+            if Path(real_node.root_path) not in roots:
+                continue
+            ofp = Path(real_node.original_file_path)
+            if ofp in paths:
+                yield node
+            elif any(parent in paths for parent in ofp.parents):
+                yield node
+
+
+# Monkeypatch!
+MethodManager.SELECTOR_METHODS[MethodName.Path] = RelativePathSelectorMethod
 
 
 @dataclass
@@ -45,7 +66,7 @@ class Jobby:
         self.selector_generator = SelectorGenerator(
             manifest=self.manifest,
             graph=self.graph,
-            selector_evaluator=self.get_models_for_selector,
+            selector_evaluator=self.get_models_for_selector_strings,
         )
 
         self.checkpoints: Dict[str, Set[UniqueId]] = {}
@@ -103,7 +124,7 @@ class Jobby:
 
             job.selectors.append((select, exclude))
 
-            models = self.get_models_for_selector(select, exclude)
+            models = self.get_models_for_selector_strings(select, exclude)
             job.models.update(
                 {
                     model: Model(

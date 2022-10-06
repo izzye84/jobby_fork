@@ -21,6 +21,8 @@ class GenericNode(BaseModel):
     package_name: str
     source_name: Optional[str]
     path: str
+    root_path: str
+    original_file_path: str
 
     @property
     def depends_on_nodes(self):
