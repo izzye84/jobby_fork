@@ -9,6 +9,7 @@ from jobby.types.manifest import Manifest
 
 
 class SelectorGenerator:
+    """A class that can generate string-based selectors for a given graph."""
     def __init__(
             self,
             manifest: Manifest,
@@ -41,7 +42,8 @@ class SelectorGenerator:
                                deps=node.depends_on_nodes)
         networkx.set_node_attributes(selected_graph, nodes_to_update, 'foundation')
 
-    def _select_foundation_selectors(self, selected_graph):
+    def _select_foundation_selectors(self, selected_graph) -> Tuple[Set[str], Set[str]]:
+        """Identify a set of selectors that are stable for parent selection."""
 
         sections = set()
         self.identify_foundation_nodes(selected_graph)
@@ -85,13 +87,6 @@ class SelectorGenerator:
                 colors[node] = 'red'
             else:
                 colors[node] = 'green'
-
-        # import matplotlib.pyplot as plt
-        # positions= networkx.nx_pydot.graphviz_layout(selected_graph, prog='dot')
-        # networkx.draw_networkx(selected_graph, pos=positions,
-        #                        with_labels=True, node_color=colors.values(),
-        #                        font_size=8)
-        # plt.show()
 
         removed_nodes = set()
 
@@ -255,7 +250,6 @@ class SelectorGenerator:
                     if len(added.intersection(new_model_lists)) > 0:
                         logger.error("{selector} is responsible for adding {intersection}",
                                      selector=select, intersection = added.intersection(new_model_lists))
-
 
         logger.success("The new selector for {job} has been confirmed to be stable.", job=job.name)
 

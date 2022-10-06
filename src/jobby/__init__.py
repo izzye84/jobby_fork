@@ -75,6 +75,7 @@ class Jobby:
 
     @staticmethod
     def _compile_graph(manifest: Manifest):
+        """Use the internal dbt Compiler to link a graph together from a manifest."""
         _linker = Linker()
         compiler = Compiler(MockConfig())
         compiler.link_graph(_linker, manifest, add_test_edges=False)
@@ -204,54 +205,6 @@ class Jobby:
             source_job = None
 
         return {job.job_id: job for job in target_jobs}, source_job
-
-    def _select_foundation_selectors(self, selected_graph):
-        sections = set()
-        nodes = list(networkx.topological_sort(selected_graph))
-
-        for node in nodes:
-
-            ancestor_foundation = [
-                selected_graph.nodes[ancestor]["foundation"] is True
-                for ancestor in networkx.ancestors(selected_graph, node)
-            ]
-
-            if len(ancestor_foundation) == 0:
-                continue
-
-            if all(ancestor_foundation):
-                selected_graph.nodes[node]["foundation"] = True
-
-        foundation_nodes = {
-            node
-            for node, value in networkx.get_node_attributes(
-                selected_graph, "foundation"
-            ).items()
-            if value is True
-        }
-
-        removed_nodes = set()
-
-        foundation_subgraph = selected_graph.subgraph(foundation_nodes)
-        for component in networkx.connected_components(
-            networkx.to_undirected(foundation_subgraph)
-        ):
-
-            if len(component) <= 1:
-                continue
-
-            component_subgraph = selected_graph.subgraph(component)
-            removed_nodes.update(component)
-            leaves = (
-                x
-                for x in component_subgraph.nodes()
-                if component_subgraph.out_degree(x) == 0
-            )
-            sections = sections.union(
-                {f"+{self.model_mapping[leaf]}" for leaf in leaves}
-            )
-
-        return sections, removed_nodes
 
     def transfer_models(
         self, model_names: Set[UniqueId], source_job: Job, target_job: Job

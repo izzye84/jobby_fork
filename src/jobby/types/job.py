@@ -25,28 +25,6 @@ class Job:
             selectors if selectors is not None else []
         )
 
-    # def _evaluate_models(self) -> Dict:
-    #     models = {}
-    #
-    #     exclusions = set()
-    #     if self.exclude:
-    #         exclusions = self.dag.select(self.exclude)
-    #
-    #     for node in self.dag.select(self.selector):
-    #         if node.split(".")[0] not in ("model", "snapshot"):
-    #             continue
-    #
-    #         if node in exclusions:
-    #             continue
-    #
-    #         models[node] = Model(
-    #             unique_id=node,
-    #             depends_on=self.dag.node_dependencies(node),
-    #             name=self.dag.model_mapping[node],
-    #         )
-    #
-    #     return models
-
     def model_dependencies(self) -> Set[str]:
         """Return a set of all the external models that this job requires."""
         output = set()
@@ -96,6 +74,7 @@ class Job:
         return new_job
 
     def generate_terraform_import(self) -> Tuple[str, str]:
+        """Return a terraform resource and the import command to import this job."""
         # Write terraform resources and the import commands
 
         def generate_job_name(raw_name: str) -> str:
