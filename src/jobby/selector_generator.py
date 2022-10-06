@@ -11,7 +11,8 @@ from jobby.types.manifest import Manifest
 class SelectionMismatchException(Exception):
     """A selection does not match its original model unique_id set."""
 
-    def __init__(self, added, removed, difference):
+    def __init__(self, message, added, removed, difference):
+        self.message = message
         self.added = added
         self.removed = removed
         self.difference = difference
@@ -63,7 +64,7 @@ class SelectorGenerator:
 
         for node in nodes:
             ancestor_foundation: Dict[UniqueId, bool] = {}
-            for dependency in self.manifest.get_model(node).depends_on_nodes:
+            for dependency in self.manifest.get_node(node).depends_on_nodes:
                 if dependency not in selected_graph.nodes:
                     ancestor_foundation[dependency] = False
                 else:
@@ -257,7 +258,10 @@ class SelectorGenerator:
 
         if len(difference) != 0:
             exception = SelectionMismatchException(
-                f"Identified selector drift. Added: {added}. Removed {removed}"
+                message=f"Identified selector drift. Added: {added}. Removed {removed}",
+                added=added,
+                removed=removed,
+                difference=difference,
             )
 
             logger.error(exception)

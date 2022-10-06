@@ -24,6 +24,7 @@ class Job:
         self.selectors: List[Tuple[List[str], List[str]]] = (
             selectors if selectors is not None else []
         )
+        self.warning_state = False
 
     def model_dependencies(self) -> Set[str]:
         """Return a set of all the external models that this job requires."""
@@ -33,16 +34,27 @@ class Job:
 
         return output.difference(self.models.keys())
 
+    def clear_warning_state(self):
+        self.warning_state = False
+
+    def _set_warning_state(self):
+        self.warning_state = True
+        logger.warning(
+            f"The {self.name} job model set is no longer aligned with its selector."
+        )
+
     def pop_model(self, unique_id: UniqueId) -> Model:
         """Remove a model from the model dictionary by name, and return it."""
         model = self.models[unique_id].copy()
         del self.models[unique_id]
+        self._set_warning_state()
 
         return model
 
     def add_model(self, model: Model) -> None:
         """Add a model to the Job, and replan its selector"""
         self.models[model.unique_id] = model
+        self._set_warning_state()
 
     def union(self, other_jobs: List[Job]) -> Job:
         """Union two jobs such that they encompass the unioned set of models."""

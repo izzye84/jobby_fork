@@ -1,3 +1,4 @@
+import copy
 import json
 import re
 from dataclasses import dataclass
@@ -49,12 +50,27 @@ class MockConfig:
 class Jobby:
     def __init__(
         self,
-        manifest_path: str,
-        account_id: Optional[int] = None,
-        api_key: Optional[str] = None,
+        account_id: int,
+        api_key: str,
+        manifest_path: Optional[str] = None,
+        environemnt_id: Optional[int] = None,
     ):
+
         self.dbt_cloud_client = DBTCloud(account_id, api_key)
-        self.manifest = Manifest(json.load(open(manifest_path)))
+        self.environment_id = environemnt_id
+
+        if manifest_path:
+            manifest_dictionary = json.load(open(manifest_path))
+        else:
+            if environemnt_id is None:
+                raise Exception(
+                    "If a manfest path is not provided, then an environment_id must be provided."
+                )
+            manifest_dictionary = self.dbt_cloud_client.get_latest_manifest(
+                environemnt_id
+            )
+
+        self.manifest = Manifest(manifest_dictionary)
 
         # Compile a graph
 
@@ -102,6 +118,55 @@ class Jobby:
         )
 
         return selector.get_selected(spec=specification)
+
+    def get_all_jobs(self) -> Dict[int, Job]:
+        """Get a dictionary of all jobs"""
+        if self.environment_id is None:
+            raise Exception(
+                "All jobs can only be returned if an environment_id has been provided."
+            )
+
+        dbt_cloud_jobs = self.dbt_cloud_client.get_jobs(
+            environment_id=self.environment_id
+        )
+
+        jobs: Dict[int, Job] = {}
+
+        for dbt_cloud_job in dbt_cloud_jobs:
+
+            job = Job(
+                job_id=dbt_cloud_job["id"],
+                name=dbt_cloud_job["name"],
+                steps=dbt_cloud_job["execute_steps"],
+            )
+
+            for step in job.steps:
+
+                matches = re.search("(--select|-s) ([@+a-zA-Z0-9_ :,]*)", step)
+                select = matches.groups()[1].rstrip().split(" ")
+
+                matches = re.search("(--exclude|-e) ([@+a-zA-Z0-9_ :,]*)", step)
+                exclude = None
+                if matches:
+                    exclude = matches.groups()[1].rstrip().split(" ")
+
+                job.selectors.append((select, exclude))
+
+                models = self.get_models_for_selector_strings(select, exclude)
+                job.models.update(
+                    {
+                        model: Model(
+                            unique_id=model,
+                            name=self.manifest.nodes[model].name,
+                            depends_on=self.manifest.nodes[model].depends_on_nodes,
+                        )
+                        for model in models
+                    }
+                )
+
+            jobs[dbt_cloud_job["id"]] = job
+
+        return jobs
 
     def get_job(self, job_id: int):
         """Generate a Job based on a dbt Cloud job."""
@@ -222,12 +287,15 @@ class Jobby:
         source_job.selectors = self.selector_generator.generate(source_job)
         target_job.selectors = self.selector_generator.generate(target_job)
 
-    def optimize(self, job: Job) -> None:
+    def generate_selector(self, job: Job, optimize=False) -> Job:
         """Optimize a Job's selectors and run steps"""
-        job.selectors = self.selector_generator.generate(job, optimize=True)
-        job.steps = [
-            f"dbt build {self.selector_generator.render_selector(job.selectors)}"
+        new_job = copy.deepcopy(job)
+        new_job.selectors = self.selector_generator.generate(new_job, optimize=optimize)
+        new_job.steps = [
+            f"dbt build {self.selector_generator.render_selector(new_job.selectors)}"
         ]
+
+        return new_job
 
     def save_job_checkpoint(self, jobs: List[Job], name: str):
         """Save a checkpoint of current Job model selection for future validation"""

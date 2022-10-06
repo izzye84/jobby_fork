@@ -2,6 +2,8 @@ from typing import Dict, List, Optional, Set
 
 from dbt.graph import UniqueId
 from dbt.node_types import NodeType
+
+from jobby.types.model import Model
 from pydantic import BaseModel, Field
 
 
@@ -44,10 +46,17 @@ class Manifest:
             key: GenericNode(**value) for key, value in data["metrics"].items()
         }
 
-    def get_model(self, unique_id: UniqueId) -> GenericNode:
+    def get_node(self, unique_id: UniqueId) -> GenericNode:
         """Get a model using the model's UniqueId"""
         return self.nodes[unique_id]
 
     def get_model_name(self, unique_id: UniqueId) -> str:
         """Get the human-friendly name of a model using the model's UniqueId"""
         return self.nodes[unique_id].name
+
+    def get_model(self, unique_id: UniqueId) -> Model:
+        """Get a model using the model's UniqueId"""
+        node = self.get_node(unique_id)
+        return Model(
+            name=node.name, unique_id=node.unique_id, depends_on=node.depends_on_nodes
+        )
