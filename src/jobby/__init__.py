@@ -1,11 +1,10 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Optional, Set, List, Tuple, Dict, Iterator
 from pathlib import Path
+from typing import Optional, Set, List, Tuple, Dict, Iterator
 
 import dbt.flags
-import networkx
 from dbt.compilation import Linker, Compiler
 from dbt.graph import UniqueId, ResourceTypeSelector, parse_difference, Graph
 from dbt.graph.selector_methods import SelectorMethod, MethodManager, MethodName
@@ -16,12 +15,14 @@ from loguru import logger
 from jobby.dbt_cloud import DBTCloud
 from jobby.selector_generator import SelectorGenerator
 from jobby.types.job import Job
-from jobby.types.manifest import Manifest, GenericNode
+from jobby.types.manifest import Manifest
 from jobby.types.model import Model
 
 
 class RelativePathSelectorMethod(SelectorMethod):
-    def search(self, included_nodes: Set[UniqueId], selector: str) -> Iterator[UniqueId]:
+    def search(
+        self, included_nodes: Set[UniqueId], selector: str
+    ) -> Iterator[UniqueId]:
         """Yields nodes from included that match the given path."""
         roots = {Path(node.root_path) for _, node in self.all_nodes(included_nodes)}
         paths = set(p.relative_to(root) for root in roots for p in root.glob(selector))
@@ -89,7 +90,7 @@ class Jobby:
         return self.get_models_for_selector_specification(specification=spec)
 
     def get_models_for_selector_specification(
-            self, specification: SelectionSpec
+        self, specification: SelectionSpec
     ) -> Set[UniqueId]:
         """Get a set of models given a select and exclude statement"""
 
@@ -115,10 +116,10 @@ class Jobby:
 
         for step in job.steps:
 
-            matches = re.search("(\-\-select|\-s) ([@+a-zA-Z0-9\_ :,]*)", step)
+            matches = re.search("(--select|-s) ([@+a-zA-Z0-9_ :,]*)", step)
             select = matches.groups()[1].rstrip().split(" ")
 
-            matches = re.search("(\-\-exclude|\-e) ([@+a-zA-Z0-9\_ :,]*)", step)
+            matches = re.search("(--exclude|-e) ([@+a-zA-Z0-9_ :,]*)", step)
             exclude = None
             if matches:
                 exclude = matches.groups()[1].rstrip().split(" ")
@@ -142,7 +143,9 @@ class Jobby:
     def distribute_job(
         self, source_job: Job, target_jobs: List[Job]
     ) -> Tuple[dict[int, Job], Optional[Job]]:
-        """Partition a job such that its responsibilities are added to the target jobs."""
+        """
+        Partition a job such that its responsibilities are added to the target jobs.
+        """
 
         logger.debug(
             "Distributing models from {source} into {targets}",
@@ -181,7 +184,9 @@ class Jobby:
                         ),
                     )
                     job_dependencies.update(target_job.models[dependency].depends_on)
-                    target_job.selectors.append(([self.manifest.get_model(dependency).name], []))
+                    target_job.selectors.append(
+                        ([self.manifest.get_model(dependency).name], [])
+                    )
 
         for job in target_jobs:
             logger.debug("Generating new selector for {job}", job=job.name)
@@ -220,13 +225,17 @@ class Jobby:
     def optimize(self, job: Job) -> None:
         """Optimize a Job's selectors and run steps"""
         job.selectors = self.selector_generator.generate(job, optimize=True)
-        job.steps = [f'dbt build {self.selector_generator.render_selector(job.selectors)}']
+        job.steps = [
+            f"dbt build {self.selector_generator.render_selector(job.selectors)}"
+        ]
 
     def save_job_checkpoint(self, jobs: List[Job], name: str):
         """Save a checkpoint of current Job model selection for future validation"""
         self.checkpoints[name] = {model for job in jobs for model in job.models.keys()}
 
-    def validate_selection_stability(self, jobs: List[Job], checkpoint_name: str) -> Tuple[Set[UniqueId], Set[UniqueId]]:
+    def validate_selection_stability(
+        self, jobs: List[Job], checkpoint_name: str
+    ) -> Tuple[Set[UniqueId], Set[UniqueId]]:
         """Validate current job model selection against a checkpoint."""
         current_models = {model for job in jobs for model in job.models.keys()}
         original_models = self.checkpoints[checkpoint_name]

@@ -10,12 +10,12 @@ from jobby.types.model import Model
 
 class Job:
     def __init__(
-            self,
-            job_id: int,
-            name: str,
-            steps: List[str],
-            selectors: List[Tuple[List[str], List[str]]] = None,
-            models: Optional[Dict[UniqueId, Model]] = None,
+        self,
+        job_id: int,
+        name: str,
+        steps: List[str],
+        selectors: List[Tuple[List[str], List[str]]] = None,
+        models: Optional[Dict[UniqueId, Model]] = None,
     ) -> None:
         self.job_id = job_id
         self.name: Optional[str] = name
@@ -79,16 +79,19 @@ class Job:
 
         def generate_job_name(raw_name: str) -> str:
             import re
-            name = re.sub(r'[^\w]', ' ', raw_name)
-            name = name.replace(' ', '_').lower()
-            name = re.sub(r'\_{2,}', '_', name)
+
+            name = re.sub(r"[^\w]", " ", raw_name)
+            name = name.replace(" ", "_").lower()
+            name = re.sub(r"\_{2,}", "_", name)
             return name
 
         resource = """
         resource "dbt_cloud_job" "{name}" {{
 
         }}
-        """.format(name=generate_job_name(self.name))
+        """.format(
+            name=generate_job_name(self.name)
+        )
 
         command = "terraform import dbt_cloud_job.{name} {job_id}".format(
             name=generate_job_name(self.name),

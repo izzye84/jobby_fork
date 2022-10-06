@@ -5,6 +5,7 @@ import requests
 
 class DBTCloud:
     """A minimalistic API client for fetching dbt Cloud data."""
+
     def __init__(self, account_id: int, api_key: str) -> None:
         self.account_id = account_id
         self._api_key = api_key
@@ -46,15 +47,15 @@ class DBTCloud:
             jobs.extend(job_data["data"])
 
             if (
-                    job_data["extra"]["filters"]["limit"]
-                    + job_data["extra"]["filters"]["offset"]
-                    >= job_data["extra"]["pagination"]["total_count"]
+                job_data["extra"]["filters"]["limit"]
+                + job_data["extra"]["filters"]["offset"]
+                >= job_data["extra"]["pagination"]["total_count"]
             ):
                 break
 
             offset += job_data["extra"]["filters"]["limit"]
 
-        return list(filter(lambda x: x['environment_id'] == environment_id, jobs))
+        return list(filter(lambda x: x["environment_id"] == environment_id, jobs))
 
     def get_job(self, job_id: int) -> Dict:
         """Generate a Job based on a dbt Cloud job."""
@@ -62,7 +63,10 @@ class DBTCloud:
         self._check_for_creds()
 
         response = requests.get(
-            url=f"https://cloud.getdbt.com/api/v2/accounts/{self.account_id}/jobs/{job_id}",
+            url=(
+                f"https://cloud.getdbt.com/api/v2/accounts/"
+                f"{self.account_id}/jobs/{job_id}"
+            ),
             headers={
                 "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json",
