@@ -20,7 +20,7 @@ To get started, install and import `jobby`, then, create a new `Jobby` instance.
 from jobby import Jobby
 jobby = Jobby(
     account_id=[dbt Cloud account ID], 
-    environemnt_id=[ID of the dbt Cloud environment of interest], 
+    environment_id=[ID of the dbt Cloud environment of interest], 
     api_key=os.environ.get('API_KEY')
 )
 ```
