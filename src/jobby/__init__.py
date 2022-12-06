@@ -142,7 +142,7 @@ class Jobby:
 
             for step in job.steps:
 
-                matches = re.search("(--select|-s) ([@+a-zA-Z0-9_ :,]*)", step)
+                matches = re.search("(--select|-s|--models|-m) ([@+a-zA-Z0-9_ :,]*)", step)
                 select = matches.groups()[1].rstrip().split(" ")
 
                 matches = re.search("(--exclude|-e) ([@+a-zA-Z0-9_ :,]*)", step)
