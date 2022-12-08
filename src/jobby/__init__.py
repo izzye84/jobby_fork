@@ -1,6 +1,7 @@
 import copy
 import json
 import re
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Set, List, Tuple, Dict, Iterator
@@ -40,6 +41,8 @@ class RelativePathSelectorMethod(SelectorMethod):
 # Monkeypatch!
 MethodManager.SELECTOR_METHODS[MethodName.Path] = RelativePathSelectorMethod
 
+# Environment Variables
+dbt_cloud_base_url = os.getenv("DBT_CLOUD_BASE_URL", default="cloud.getdbt.com")
 
 @dataclass
 class MockConfig:
@@ -52,11 +55,12 @@ class Jobby:
         self,
         account_id: int,
         api_key: str,
+        dbt_cloud_base_url: str = dbt_cloud_base_url,
         manifest_path: Optional[str] = None,
         environemnt_id: Optional[int] = None,
     ):
 
-        self.dbt_cloud_client = DBTCloud(account_id, api_key)
+        self.dbt_cloud_client = DBTCloud(account_id, api_key, dbt_cloud_base_url)
         self.environment_id = environemnt_id
 
         if manifest_path:
