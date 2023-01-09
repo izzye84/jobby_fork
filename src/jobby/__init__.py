@@ -142,8 +142,13 @@ class Jobby:
 
             for step in job.steps:
 
-                matches = re.search("(--select|-s) ([@+a-zA-Z0-9_ :,]*)", step)
-                select = matches.groups()[1].rstrip().split(" ")
+                matches = re.search("(--select|-s|--models|-m|--model) ([@+a-zA-Z0-9_ :,]*)", step)
+                select = None
+                if matches:
+                    select = matches.groups()[1].rstrip().split(" ")
+                    if any(["state:" in element for element in select]):
+                        logger.info("Job ID {job_id} contains a state selector, skipping!",job_id=job.job_id)
+                        continue
 
                 matches = re.search("(--exclude|-e) ([@+a-zA-Z0-9_ :,]*)", step)
                 exclude = None
@@ -152,7 +157,11 @@ class Jobby:
 
                 job.selectors.append((select, exclude))
 
-                models = self.get_models_for_selector_strings(select, exclude)
+                try:
+                    models = self.get_models_for_selector_strings(select, exclude)
+                except Exception as e:
+                    logger.error("Failed to initialize selector for selection string {select} in job {job_id}", select=select, job_id=job.job_id)
+                    raise e
                 job.models.update(
                     {
                         model: Model(
@@ -181,7 +190,7 @@ class Jobby:
 
         for step in job.steps:
 
-            matches = re.search("(--select|-s) ([@+a-zA-Z0-9_ :,]*)", step)
+            matches = re.search("(--select|-s|--models|-m|--model) ([@+a-zA-Z0-9_ :,]*)", step)
             select = matches.groups()[1].rstrip().split(" ")
 
             matches = re.search("(--exclude|-e) ([@+a-zA-Z0-9_ :,]*)", step)
