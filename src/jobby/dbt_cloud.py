@@ -7,9 +7,10 @@ from loguru import logger
 class DBTCloud:
     """A minimalistic API client for fetching dbt Cloud data."""
 
-    def __init__(self, account_id: int, api_key: str) -> None:
+    def __init__(self, account_id: int, api_key: str, dbt_cloud_base_url: str) -> None:
         self.account_id = account_id
         self._api_key = api_key
+        self.dbt_cloud_base_url = dbt_cloud_base_url
         self._manifests: Dict = {}
 
     def _check_for_creds(self):
@@ -34,7 +35,7 @@ class DBTCloud:
             }
 
             response = requests.get(
-                url=f"https://cloud.getdbt.com/api/v2/accounts/{self.account_id}/runs/",
+                url=f"https://{self.dbt_cloud_base_url}/api/v2/accounts/{self.account_id}/runs/",
                 params=parameters,
                 headers={
                     "Authorization": f"Bearer {self._api_key}",
@@ -82,7 +83,7 @@ class DBTCloud:
         run = self.get_latest_job_runs(jobs[0]["id"])
 
         manifest_response = requests.get(
-            url=f"https://cloud.getdbt.com/api/v2/accounts/{self.account_id}/runs/{run['id']}/artifacts/manifest.json",
+            url=f"https://{self.dbt_cloud_base_url}/api/v2/accounts/{self.account_id}/runs/{run['id']}/artifacts/manifest.json",
             headers={
                 "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json",
@@ -107,7 +108,7 @@ class DBTCloud:
             #     parameters['project_id'] = project_id
 
             response = requests.get(
-                url=f"https://cloud.getdbt.com/api/v2/accounts/{self.account_id}/jobs/",
+                url=f"https://{self.dbt_cloud_base_url}/api/v2/accounts/{self.account_id}/jobs/",
                 params=parameters,
                 headers={
                     "Authorization": f"Bearer {self._api_key}",
@@ -136,7 +137,7 @@ class DBTCloud:
 
         response = requests.get(
             url=(
-                f"https://cloud.getdbt.com/api/v2/accounts/"
+                f"https://{self.dbt_cloud_base_url}/api/v2/accounts/"
                 f"{self.account_id}/jobs/{job_id}"
             ),
             headers={
